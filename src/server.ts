@@ -1,4 +1,6 @@
+
 import Fastify from "fastify";
+import { conversationRoutes } from "./modules/conversations/conversation.routes.js";
 
 const app = Fastify({
   logger: true
@@ -13,6 +15,8 @@ app.get("/health", async () => {
 
 const start = async () => {
   try {
+    await app.register(conversationRoutes);
+
     await app.listen({
       port: 3000,
       host: "0.0.0.0"
