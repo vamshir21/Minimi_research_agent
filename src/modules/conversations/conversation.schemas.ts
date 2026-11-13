@@ -10,3 +10,12 @@ export const createConversationSchema = z.object({
 export type CreateConversationInput = z.infer<
   typeof createConversationSchema
 >;
+
+
+export const createMessageSchema = z.object({
+  content: z.string().trim().min(1).max(20000)
+});
+
+export type CreateMessageInput = z.infer<
+  typeof createMessageSchema
+>;
