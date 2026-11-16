@@ -130,3 +130,43 @@ export function getConversationMessages(
 
   return messages;
 }
+
+export interface ConversationSummary extends Conversation {
+  message_count: number;
+}
+
+export function getAllConversations(): ConversationSummary[] {
+  const conversations = db.prepare(`
+    SELECT
+      c.id,
+      c.title,
+      c.timezone,
+      c.created_at,
+      c.updated_at,
+      COUNT(m.id) AS message_count
+    FROM conversations c
+    LEFT JOIN messages m
+      ON c.id = m.conversation_id
+      AND m.deleted_at IS NULL
+    GROUP BY c.id
+    ORDER BY c.updated_at DESC
+  `).all() as ConversationSummary[];
+
+  return conversations;
+
+ }
+export function getConversationById(
+  conversationId: string
+ ): Conversation {
+  const conversation = db.prepare(`
+    SELECT *
+    FROM conversations
+    WHERE id = ?
+  `).get(conversationId) as Conversation | undefined;
+
+  if (!conversation) {
+    throw new Error("CONVERSATION_NOT_FOUND");
+  }
+
+  return conversation;
+}

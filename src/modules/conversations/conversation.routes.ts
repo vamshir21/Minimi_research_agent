@@ -1,8 +1,8 @@
 
 import type { FastifyInstance } from "fastify";
 import { createConversationSchema,createMessageSchema } from "./conversation.schemas.js";
-import { createConversation,createMessage,getConversationMessages} from "./conversation.service.js";
 
+import { createConversation,createMessage,getConversationMessages,getAllConversations,getConversationById} from "./conversation.service.js";
 export async function conversationRoutes(app: FastifyInstance) {
   app.post("/api/v1/conversations", async (request, reply) => {
     const parsed = createConversationSchema.safeParse(request.body);
@@ -66,6 +66,38 @@ export async function conversationRoutes(app: FastifyInstance) {
     return reply.code(200).send({
       message: "Conversation messages retrieved successfully",
       data: messages
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "CONVERSATION_NOT_FOUND"
+    ) {
+      return reply.code(404).send({
+        error: "Conversation not found"
+      });
+    }
+
+    throw error;
+  }
+ });
+
+  app.get("/api/v1/conversations", async (_request, reply) => {
+  const conversations = getAllConversations();
+
+  return reply.code(200).send({
+    message: "Conversations retrieved successfully",
+    data: conversations
+  });
+ });
+ app.get("/api/v1/conversations/:id", async (request, reply) => {
+  const params = request.params as { id: string };
+
+  try {
+    const conversation = getConversationById(params.id);
+
+    return reply.code(200).send({
+      message: "Conversation retrieved successfully",
+      data: conversation
     });
   } catch (error) {
     if (
