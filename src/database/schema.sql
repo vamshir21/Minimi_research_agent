@@ -52,3 +52,143 @@ ON messages(conversation_id, deleted_at);
 
 CREATE INDEX IF NOT EXISTS idx_revisions_message
 ON message_revisions(message_id, revision_number);
+
+-- 4. Memories
+CREATE TABLE IF NOT EXISTS memories (
+    id TEXT PRIMARY KEY,
+
+    content TEXT NOT NULL,
+
+    memory_type TEXT NOT NULL CHECK (
+        memory_type IN (
+            'fact',
+            'preference',
+            'goal',
+            'decision',
+            'instruction',
+            'context'
+        )
+    ),
+
+    origin TEXT NOT NULL CHECK (
+        origin IN ('explicit', 'inferred')
+    ),
+
+    confidence REAL NOT NULL CHECK (
+        confidence >= 0.0 AND confidence <= 1.0
+    ),
+
+    status TEXT NOT NULL DEFAULT 'current' CHECK (
+        status IN (
+            'current',
+            'tentative',
+            'superseded',
+            'disputed',
+            'expired'
+        )
+    ),
+
+    source_message_id TEXT NOT NULL,
+
+    extracted_at TEXT NOT NULL,
+    valid_from TEXT,
+    valid_until TEXT,
+
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+
+    FOREIGN KEY (source_message_id)
+        REFERENCES messages(id)
+        ON DELETE RESTRICT
+);
+
+-- 5. Memory audit trail
+CREATE TABLE IF NOT EXISTS memory_audit (
+    id TEXT PRIMARY KEY,
+
+    memory_id TEXT,
+
+    source_message_id TEXT NOT NULL,
+
+    action TEXT NOT NULL CHECK (
+        action IN (
+            'proposed',
+            'accepted',
+            'rejected',
+            'updated',
+            'superseded'
+        )
+    ),
+
+    proposed_content TEXT NOT NULL,
+
+    reason TEXT,
+
+    recorded_at TEXT NOT NULL,
+
+    FOREIGN KEY (memory_id)
+        REFERENCES memories(id)
+        ON DELETE SET NULL,
+
+    FOREIGN KEY (source_message_id)
+        REFERENCES messages(id)
+        ON DELETE RESTRICT
+);
+-- 6. Memory relationships
+CREATE TABLE IF NOT EXISTS memory_relationships (
+    id TEXT PRIMARY KEY,
+
+    source_memory_id TEXT NOT NULL,
+
+    target_memory_id TEXT NOT NULL,
+
+    relationship_type TEXT NOT NULL CHECK (
+        relationship_type IN (
+            'supports',
+            'contradicts',
+            'supersedes',
+            'related_to'
+        )
+    ),
+
+    created_at TEXT NOT NULL,
+
+    CHECK (source_memory_id <> target_memory_id),
+
+    UNIQUE (
+        source_memory_id,
+        target_memory_id,
+        relationship_type
+    ),
+
+    FOREIGN KEY (source_memory_id)
+        REFERENCES memories(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (target_memory_id)
+        REFERENCES memories(id)
+        ON DELETE CASCADE
+);
+
+-- Memories indexes
+
+CREATE INDEX IF NOT EXISTS idx_memories_status_extracted
+ON memories(status, extracted_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_memories_source_message
+ON memories(source_message_id);
+
+
+-- Memory audit indexes
+
+CREATE INDEX IF NOT EXISTS idx_memory_audit_source_recorded
+ON memory_audit(source_message_id, recorded_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_memory_audit_memory_recorded
+ON memory_audit(memory_id, recorded_at DESC);
+
+
+-- Memory relationship indexes
+
+CREATE INDEX IF NOT EXISTS idx_memory_relationships_target
+ON memory_relationships(target_memory_id);
