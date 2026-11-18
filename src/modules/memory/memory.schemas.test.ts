@@ -13,7 +13,7 @@ describe("Memory Candidate Schema", () => {
       origin: "explicit",
       confidence: 0.99,
       status: "current",
-      source_message_id: "message-123",
+      source_index: 0,
     });
 
     expect(result.success).toBe(true);
@@ -26,7 +26,7 @@ describe("Memory Candidate Schema", () => {
       origin: "explicit",
       confidence: 1.5,
       status: "current",
-      source_message_id: "message-123",
+      source_index: 0,
     });
 
     expect(result.success).toBe(false);
@@ -39,7 +39,7 @@ describe("Memory Candidate Schema", () => {
       origin: "inferred",
       confidence: 0.8,
       status: "current",
-      source_message_id: "message-123",
+      source_index: 0,
     });
 
     expect(result.success).toBe(false);
@@ -52,7 +52,33 @@ describe("Memory Candidate Schema", () => {
       origin: "inferred",
       confidence: 0.8,
       status: "current",
-      source_message_id: "message-123",
+      source_index: 0,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a negative source index", () => {
+    const result = memoryCandidateSchema.safeParse({
+      content: "The user prefers Python.",
+      memory_type: "preference",
+      origin: "explicit",
+      confidence: 0.95,
+      status: "current",
+      source_index: -1,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a decimal source index", () => {
+    const result = memoryCandidateSchema.safeParse({
+      content: "The user prefers Python.",
+      memory_type: "preference",
+      origin: "explicit",
+      confidence: 0.95,
+      status: "current",
+      source_index: 1.5,
     });
 
     expect(result.success).toBe(false);
@@ -76,7 +102,7 @@ describe("Memory Extraction Schema", () => {
         origin: "inferred",
         confidence: 0.9,
         status: "current",
-        source_message_id: "message-123",
+        source_index: 0,
       })),
     });
 

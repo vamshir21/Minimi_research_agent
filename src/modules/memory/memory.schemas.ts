@@ -28,7 +28,7 @@ export const memoryCandidateSchema = z.object({
     "expired",
   ]),
 
-  source_message_id: z.string().trim().min(1),
+  source_index: z.number().int().min(0),
 });
 
 export const memoryExtractionSchema = z.object({
