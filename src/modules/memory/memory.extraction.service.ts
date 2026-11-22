@@ -7,6 +7,7 @@ import type {
 
 import { memoryExtractionSchema } from "./memory.schemas.js";
 import { resolveMemorySources } from "./memory.provenance.js";
+import { withLLMRetries } from "../llm/llm.retry.js";
 
 function buildExtractionPrompt(messages: ExtractionMessage[]): string {
   const indexedMessages = messages.map((message, index) => ({
@@ -81,10 +82,13 @@ export class MemoryExtractionServiceImpl
 
     const userPrompt = buildExtractionPrompt(messages);
 
-    const response = await this.provider.generate({
+    const response = await withLLMRetries(
+    () =>
+     this.provider.generate({
       systemPrompt,
       userPrompt,
-    });
+     }),
+    );
 
     const parsedResponse: unknown = JSON.parse(response.content);
 
