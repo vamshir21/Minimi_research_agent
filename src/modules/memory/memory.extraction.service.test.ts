@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LLMProvider } from "../llm/llm.types.js";
 import { MemoryExtractionServiceImpl } from "./memory.extraction.service.js";
+import { LLMError } from "../llm/llm.errors.js";
 
 function createProvider(content: string): LLMProvider {
   return {
@@ -104,4 +105,34 @@ describe("MemoryExtractionService", () => {
 
     await expect(service.extract(messages)).rejects.toThrow();
   });
+
+ it("retries a temporary provider failure", async () => {
+  let calls = 0;
+
+  const provider: LLMProvider = {
+    async generate() {
+      calls++;
+
+      if (calls === 1) {
+        throw new (await import("../llm/llm.errors.js")).LLMError(
+          "Temporary provider failure",
+          "provider_error",
+          true,
+        );
+      }
+
+      return {
+        content: JSON.stringify({ memories: [] }),
+      };
+    },
+  };
+
+  const service = new MemoryExtractionServiceImpl(provider);
+
+  const result = await service.extract(messages);
+
+  expect(calls).toBe(2);
+  expect(result.memories).toEqual([]);
+ });
+
 });
