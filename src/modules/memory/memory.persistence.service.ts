@@ -10,9 +10,37 @@ import type {
 
 import type { ResolvedMemoryCandidate } from "./memory.provenance.js";
 
+function normalizeMemoryContent(content: string): string {
+  return content
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 export class MemoryPersistenceServiceImpl
   implements MemoryPersistenceService
 {
+  private isDuplicate(
+    candidate: ResolvedMemoryCandidate,
+  ): boolean {
+    const existingMemories = db.prepare(`
+      SELECT content
+      FROM memories
+      WHERE status IN ('current', 'tentative')
+        AND memory_type = ?
+    `).all(candidate.memory_type) as { content: string }[];
+
+    const candidateContent = normalizeMemoryContent(
+      candidate.content,
+    );
+
+    return existingMemories.some(
+      (memory) =>
+        normalizeMemoryContent(memory.content) ===
+        candidateContent,
+    );
+  }
+
   persist(
     candidates: ResolvedMemoryCandidate[],
   ): MemoryPersistenceSummary {
@@ -20,9 +48,22 @@ export class MemoryPersistenceServiceImpl
 
     const persistTransaction = db.transaction(() => {
       for (const candidate of candidates) {
+        // Step 1: Check for duplicates.
+        if (this.isDuplicate(candidate)) {
+          results.push({
+            candidate,
+            action: "duplicate",
+            reason: "An equivalent memory already exists",
+          });
+
+          continue;
+        }
+
+        // Step 2: Generate application-controlled values.
         const now = new Date().toISOString();
         const memoryId = randomUUID();
 
+        // Step 3: Insert the memory.
         db.prepare(`
           INSERT INTO memories (
             id,
@@ -54,6 +95,7 @@ export class MemoryPersistenceServiceImpl
           now,
         );
 
+        // Step 4: Record the accepted memory in the audit log.
         db.prepare(`
           INSERT INTO memory_audit (
             id,
@@ -75,6 +117,7 @@ export class MemoryPersistenceServiceImpl
           now,
         );
 
+        // Step 5: Record the result.
         results.push({
           candidate,
           action: "inserted",
@@ -83,14 +126,29 @@ export class MemoryPersistenceServiceImpl
       }
     });
 
+    // All database writes succeed or roll back together.
     persistTransaction();
 
+    // Step 6: Return a summary.
     return {
       total: candidates.length,
-      inserted: results.length,
-      duplicates: 0,
-      superseded: 0,
-      rejected: 0,
+
+      inserted: results.filter(
+        (result) => result.action === "inserted",
+      ).length,
+
+      duplicates: results.filter(
+        (result) => result.action === "duplicate",
+      ).length,
+
+      superseded: results.filter(
+        (result) => result.action === "superseded",
+      ).length,
+
+      rejected: results.filter(
+        (result) => result.action === "rejected",
+      ).length,
+
       results,
     };
   }

@@ -1,13 +1,17 @@
-import Database  from "better-sqlite3";
+
+import Database from "better-sqlite3";
 import path from "node:path";
-import fs from"node:fs";
+import fs from "node:fs";
 
 const dataDirectory = path.resolve("data");
-if (!fs.existsSync(dataDirectory)) {
-    fs.mkdirSync(dataDirectory, { recursive: true });
-    }
 
-const databasePath = path.join(dataDirectory, "minimi.db");
+if (!fs.existsSync(dataDirectory)) {
+  fs.mkdirSync(dataDirectory, { recursive: true });
+}
+
+const databasePath =
+  process.env.MINIMI_DB_PATH ??
+  path.join(dataDirectory, "minimi.db");
 
 const db = new Database(databasePath);
 
